@@ -3,19 +3,19 @@ What Happens Internally During Failure
 This section explains exactly what occurs inside the kernel when a governance decision fails.
 
 Failure is not an exception.
-It is a first-class, designed execution path.
+It is a first-class execution path.
 
-🔁 High-Level Flow (Always the Same)
+🔁 Deterministic Execution Pipeline
 
-Every emission follows this pipeline:
+Every emission follows the same pipeline:
 
-Ω Execution (Deterministic)
+Ω Execution (deterministic computation)
 
 Trace Object Generation
 
-SE44 Validation (Stateful)
+SE44 Validation (stateful threshold evaluation)
 
-Dual Validator Check (SE44.1)
+Dual Validator Check (SE44.1 consensus)
 
 Ledger Decision
 
@@ -23,9 +23,10 @@ Persist or Quarantine
 
 Failure can only occur at steps 3 or 4.
 
-❌ Failure Type 1: SE44 Validation Failure
+Steps 1 and 2 always complete.
 
-Cause examples
+❌ Failure Type 1: SE44 Validation Failure
+Example Causes
 
 Entropy exceeds threshold
 
@@ -33,7 +34,7 @@ Drift exceeds allowed delta from last fossil
 
 Coherence drops below minimum
 
-What happens internally
+Internal Sequence
 
 Ω is computed normally
 
@@ -43,27 +44,27 @@ SE44 evaluates metrics against thresholds
 
 Validation returns False
 
-System response
+System Response
 
 ❌ No ledger write attempted
 
-❌ No previous hash touched
+❌ No prior hash accessed or modified
 
-✅ Emission is written to the mutable shell
+✅ Emission written to mutable shell
 
-✅ Failure reason is logged explicitly
+✅ Failure reason logged explicitly
 
 ✅ Last fossilized Ω remains authoritative
 
-Invariant preserved
+Invariant Preserved
 
 History remains unchanged.
+Continuity remains intact.
 
 ❌ Failure Type 2: Dual Validator Mismatch (SE44.1)
+Example Causes
 
-Cause examples
-
-Secondary validator computes a different Ω
+Secondary validator computes different Ω
 
 Metric disagreement
 
@@ -71,7 +72,7 @@ Hash mismatch
 
 Intentional validator desynchronization
 
-What happens internally
+Internal Sequence
 
 Primary runtime emits candidate Ω + trace
 
@@ -81,82 +82,98 @@ Results or hashes differ
 
 Consensus fails
 
-System response
+System Response
 
-❌ Ledger refuses the write
+❌ Ledger write is refused
 
-❌ No partial or provisional record created
+❌ No provisional or partial record created
 
-✅ Both validator results are logged
+✅ Both validator results logged
 
-✅ Emission is quarantined (mutable shell)
+✅ Emission quarantined to mutable shell
 
-Invariant preserved
+Invariant Preserved
 
-No single actor can assert governance truth.
+No single execution authority can assert governance truth.
 
-❌ What NEVER Happens During Failure
+Consensus is required for fossilization.
 
-When governance fails, the system cannot:
+❌ What Never Happens During Failure
 
-Rewrite or amend past records
+The following code paths do not exist:
 
-Partially update the ledger
+Ledger rewrite or amendment
 
-“Fix up” results silently
+Partial ledger update
 
-Auto-retry with modified parameters
+Silent correction or parameter mutation
 
-Override validation by role or authority
+Auto-retry with adjusted thresholds
 
-These code paths do not exist.
+Role-based override of validation
 
-📦 Where Failed Emissions Go: The Mutable Shell
+Backfilled hash recalculation
+
+If validation fails, execution halts.
+
+📦 The Mutable Shell
 
 Rejected emissions are preserved, not erased.
 
-Properties of the mutable shell:
+Properties:
 
-Separate storage from the fossil ledger
+Physically separate from fossil ledger
 
 No hash chaining
 
-No authority
+No authority status
 
-Re-evaluatable later
+Re-evaluatable under future parameters
 
-Never treated as truth
+Never treated as canonical truth
 
-This allows experimentation without contaminating governance.
+The shell enables experimentation without contaminating governance history.
 
 🧠 Why This Is Safe Failure
 
-Because:
+Failure is:
 
-Failure is forward-only
+Forward-only
 
-Authority is append-only
+Contained
 
-Validation is stateful and external
+Logged
 
-Power is structurally constrained
+Non-authoritative
 
-Failure does not weaken governance.
-It demonstrates its boundaries.
+Authority remains append-only.
+Validation remains stateful.
+Consensus remains mandatory.
+
+Failure does not degrade governance.
+
+It defines its boundary.
 
 ✅ Final Guarantee
 
-When governance fails, nothing breaks — and nothing lies.
+When governance fails:
 
-If you see a failure:
+Nothing corrupts
 
-it is explicit
+Nothing rewrites
 
-it is contained
+Nothing asserts false authority
 
-it is inspectable
+Failure is:
 
-it is irreversible
+Explicit
+
+Inspectable
+
+Contained
+
+Irreversible
 
 This is not graceful degradation.
+
 This is mechanical integrity under stress.
