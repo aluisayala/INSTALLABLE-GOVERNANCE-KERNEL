@@ -1,0 +1,163 @@
+Example Logs (Success + Failure, Annotated)
+
+These are representative, literal logs a cloner will see when running the demo.
+Nothing abstract. Each line corresponds to a real execution step.
+
+You can paste this section directly into the README.
+
+🟢 Successful Governance Execution (Baseline)
+Kernel Runtime (kernel-runtime)
+[KR][INFO] Received emission request
+[KR][DEBUG] State(type=symbolic, hash=7c1e…)
+[KR][DEBUG] Bias(version=v1.0.0, hash=91ab…)
+[KR][DEBUG] Alpha(domain=demo, value=1.1)
+
+[KR][INFO] Ω computed: 12.1
+[KR][INFO] Trace generated
+[KR][INFO] SE44 validation started
+[KR][INFO] Metrics:
+    coherence = 0.997
+    entropy   = 0.004
+    rms_drift = 0.0003
+
+[KR][INFO] SE44 PASS
+[KR][INFO] Forwarding candidate to secondary validator
+
+Secondary Validator (validator-secondary)
+[SV][INFO] Received candidate Ω
+[SV][INFO] Recomputing Ω independently
+[SV][INFO] Ω recomputed: 12.1
+
+[SV][INFO] Metrics recomputed:
+    coherence = 0.997
+    entropy   = 0.004
+    rms_drift = 0.0003
+
+[SV][INFO] Hash match confirmed
+[SV][INFO] Consensus achieved
+
+Fossil Ledger (fossil-ledger)
+[FL][INFO] Consensus receipt received
+[FL][INFO] Canonicalizing JSON
+[FL][INFO] Previous hash: a91f…
+[FL][INFO] New hash computed: b44e…
+[FL][INFO] Appending fossil entry
+[FL][INFO] Ledger append successful
+
+Client Response
+{
+  "status": "ACCEPTED",
+  "omega": 12.1,
+  "hash": "b44e…"
+}
+
+
+Invariant confirmed:
+✔ History advanced exactly once
+✔ All components agreed
+
+❌ Failure Case 1: SE44 Entropy Violation
+Kernel Runtime
+[KR][INFO] Received emission request
+[KR][DEBUG] State(type=symbolic, hash=aa02…)
+[KR][DEBUG] Bias(version=v1.0.0, hash=91ab…)
+[KR][DEBUG] Alpha(domain=demo, value=10.0)
+
+[KR][INFO] Ω computed: 10010.0
+[KR][INFO] Trace generated
+[KR][INFO] SE44 validation started
+[KR][WARN] Metrics:
+    coherence = 0.992
+    entropy   = 0.087   ← threshold exceeded
+    rms_drift = 0.0004
+
+[KR][ERROR] SE44 FAIL: entropy threshold exceeded
+[KR][INFO] Writing emission to mutable shell
+[KR][INFO] Ledger write skipped
+
+What You Will Not See
+[SV] …
+[FL] …
+
+
+They are never called.
+
+Client Response
+{
+  "status": "REJECTED",
+  "reason": "SE44_ENTROPY_VIOLATION"
+}
+
+
+Invariant confirmed:
+✔ Ledger unchanged
+✔ Failure contained
+✔ Experiment preserved
+
+❌ Failure Case 2: Dual Validator Mismatch (SE44.1)
+Kernel Runtime
+[KR][INFO] Received emission request
+[KR][INFO] Ω computed: 6.0
+[KR][INFO] SE44 PASS
+[KR][INFO] Forwarding candidate to secondary validator
+
+Secondary Validator
+[SV][INFO] Recomputing Ω
+[SV][INFO] Ω recomputed: 6.5   ← mismatch detected
+[SV][ERROR] Hash mismatch
+[SV][ERROR] Consensus failed
+
+Kernel Runtime (after validator response)
+[KR][ERROR] Secondary validator disagreement
+[KR][INFO] Writing emission to mutable shell
+[KR][INFO] Ledger write aborted
+
+Fossil Ledger
+(no log output)
+
+
+Ledger is never contacted.
+
+Client Response
+{
+  "status": "REJECTED",
+  "reason": "VALIDATOR_MISMATCH"
+}
+
+
+Invariant confirmed:
+✔ No single runtime can assert governance
+✔ Consensus failure halts authority
+
+❌ Failure Case 3: Ledger Integrity Refusal
+Fossil Ledger
+[FL][WARN] Previous hash mismatch detected
+[FL][ERROR] Append refused: chain integrity violation
+
+Kernel Runtime
+[KR][ERROR] Ledger refusal received
+[KR][INFO] Emission rejected
+
+Client Response
+{
+  "status": "REJECTED",
+  "reason": "LEDGER_INTEGRITY_VIOLATION"
+}
+
+
+Invariant confirmed:
+✔ Even valid Ω + validators cannot override history
+
+🔒 Log-Level Guarantees
+
+From these logs alone, an auditor can verify:
+
+Where failure occurred
+
+Why it occurred
+
+What was not touched
+
+That history is intact
+
+There are no silent paths.
