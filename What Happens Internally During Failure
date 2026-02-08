@@ -1,0 +1,162 @@
+What Happens Internally During Failure
+
+This section explains exactly what occurs inside the kernel when a governance decision fails.
+
+Failure is not an exception.
+It is a first-class, designed execution path.
+
+🔁 High-Level Flow (Always the Same)
+
+Every emission follows this pipeline:
+
+Ω Execution (Deterministic)
+
+Trace Object Generation
+
+SE44 Validation (Stateful)
+
+Dual Validator Check (SE44.1)
+
+Ledger Decision
+
+Persist or Quarantine
+
+Failure can only occur at steps 3 or 4.
+
+❌ Failure Type 1: SE44 Validation Failure
+
+Cause examples
+
+Entropy exceeds threshold
+
+Drift exceeds allowed delta from last fossil
+
+Coherence drops below minimum
+
+What happens internally
+
+Ω is computed normally
+
+A full trace object is generated
+
+SE44 evaluates metrics against thresholds
+
+Validation returns False
+
+System response
+
+❌ No ledger write attempted
+
+❌ No previous hash touched
+
+✅ Emission is written to the mutable shell
+
+✅ Failure reason is logged explicitly
+
+✅ Last fossilized Ω remains authoritative
+
+Invariant preserved
+
+History remains unchanged.
+
+❌ Failure Type 2: Dual Validator Mismatch (SE44.1)
+
+Cause examples
+
+Secondary validator computes a different Ω
+
+Metric disagreement
+
+Hash mismatch
+
+Intentional validator desynchronization
+
+What happens internally
+
+Primary runtime emits candidate Ω + trace
+
+Secondary validator recomputes independently
+
+Results or hashes differ
+
+Consensus fails
+
+System response
+
+❌ Ledger refuses the write
+
+❌ No partial or provisional record created
+
+✅ Both validator results are logged
+
+✅ Emission is quarantined (mutable shell)
+
+Invariant preserved
+
+No single actor can assert governance truth.
+
+❌ What NEVER Happens During Failure
+
+When governance fails, the system cannot:
+
+Rewrite or amend past records
+
+Partially update the ledger
+
+“Fix up” results silently
+
+Auto-retry with modified parameters
+
+Override validation by role or authority
+
+These code paths do not exist.
+
+📦 Where Failed Emissions Go: The Mutable Shell
+
+Rejected emissions are preserved, not erased.
+
+Properties of the mutable shell:
+
+Separate storage from the fossil ledger
+
+No hash chaining
+
+No authority
+
+Re-evaluatable later
+
+Never treated as truth
+
+This allows experimentation without contaminating governance.
+
+🧠 Why This Is Safe Failure
+
+Because:
+
+Failure is forward-only
+
+Authority is append-only
+
+Validation is stateful and external
+
+Power is structurally constrained
+
+Failure does not weaken governance.
+It demonstrates its boundaries.
+
+✅ Final Guarantee
+
+When governance fails, nothing breaks — and nothing lies.
+
+If you see a failure:
+
+it is explicit
+
+it is contained
+
+it is inspectable
+
+it is irreversible
+
+This is not graceful degradation.
+This is mechanical integrity under stress.
