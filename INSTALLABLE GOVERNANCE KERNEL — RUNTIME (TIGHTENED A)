@@ -1,0 +1,218 @@
+# ============================================================
+# INSTALLABLE GOVERNANCE KERNEL — RUNTIME (TIGHTENED A)
+# ============================================================
+
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import BaseModel
+from typing import Any
+import hashlib
+import json
+import requests
+import uuid
+from pathlib import Path
+from datetime import datetime
+
+# ============================================================
+# GOVERNANCE CONSTANTS (LAW — NOT CONFIG)
+# ============================================================
+
+COHERENCE_MIN = 0.985
+COMPLEXITY_MAX = 0.01
+DRIFT_MAX = 0.001
+
+SECONDARY_VALIDATOR_URL = "http://validator-secondary:8001/validate"
+MUTABLE_SHELL_PATH = Path("/var/igk/mutable-shell")
+MUTABLE_SHELL_PATH.mkdir(parents=True, exist_ok=True)
+
+# ============================================================
+# MODELS — Typed Ω Components
+# ============================================================
+
+class TypedState(BaseModel):
+    value: float  # Explicit numeric requirement
+    type: str
+
+
+class VersionedBias(BaseModel):
+    value: float
+    version: str
+
+
+class DomainAlpha(BaseModel):
+    value: float
+    domain: str
+
+
+class OmegaEmissionRequest(BaseModel):
+    state: TypedState
+    bias: VersionedBias
+    alpha: DomainAlpha
+
+
+# ============================================================
+# SE44 GATE — Stateful Continuity Enforcement
+# ============================================================
+
+class SE44Gate:
+    def __init__(self):
+        self.last_omega = None
+
+    def measure(self, omega):
+        # Structural complexity metric (minimal, explicit)
+        complexity = 0.001  # Scalar state has fixed minimal complexity
+
+        # Drift against last stable Ω
+        drift = (
+            abs(omega - self.last_omega)
+            if self.last_omega is not None
+            else 0.0
+        )
+
+        coherence = max(0.0, 1.0 - complexity)
+
+        return {
+            "complexity": complexity,
+            "drift": drift,
+            "coherence": coherence,
+        }
+
+    def validate(self, omega):
+        metrics = self.measure(omega)
+
+        if metrics["coherence"] < COHERENCE_MIN:
+            return False, metrics
+        if metrics["complexity"] > COMPLEXITY_MAX:
+            return False, metrics
+        if metrics["drift"] > DRIFT_MAX:
+            return False, metrics
+
+        self.last_omega = omega
+        return True, metrics
+
+
+# ============================================================
+# FAILURE QUARANTINE
+# ============================================================
+
+def store_failure(reason, payload, metrics):
+    entry = {
+        "id": str(uuid.uuid4()),
+        "timestamp": datetime.utcnow().isoformat(),
+        "reason": reason,
+        "payload": payload,
+        "metrics": metrics,
+    }
+
+    with open(MUTABLE_SHELL_PATH / f"{entry['id']}.json", "w") as f:
+        json.dump(entry, f, indent=2)
+
+
+# ============================================================
+# SECONDARY VALIDATOR
+# ============================================================
+
+def validate_with_secondary(candidate, force_mismatch=False):
+    headers = {}
+    if force_mismatch:
+        headers["X-Force-Mismatch"] = "true"
+
+    try:
+        r = requests.post(
+            SECONDARY_VALIDATOR_URL,
+            json=candidate,
+            headers=headers,
+            timeout=5,
+        )
+    except requests.RequestException as e:
+        return False, {"error": str(e)}
+
+    if r.status_code != 200:
+        return False, r.json()
+
+    return True, r.json()
+
+
+# ============================================================
+# FASTAPI ENTRYPOINT
+# ============================================================
+
+app = FastAPI(
+    title="Installable Governance Kernel",
+    description="Minimal deterministic governance primitive",
+)
+
+gate = SE44Gate()
+
+
+@app.post("/emit")
+def emit(
+    req: OmegaEmissionRequest,
+    x_force_mismatch: str | None = Header(default=None),
+):
+    # --------------------------------------------------------
+    # 1. Deterministic Ω Execution
+    # --------------------------------------------------------
+    omega = (req.state.value + req.bias.value) * req.alpha.value
+
+    # --------------------------------------------------------
+    # 2. Trace Object (Always Generated)
+    # --------------------------------------------------------
+    trace = {
+        "state_type": req.state.type,
+        "bias_version": req.bias.version,
+        "domain": req.alpha.domain,
+        "state_hash": hashlib.sha256(
+            json.dumps(req.state.value).encode()
+        ).hexdigest(),
+        "bias_hash": hashlib.sha256(
+            str(req.bias.value).encode()
+        ).hexdigest(),
+    }
+
+    # --------------------------------------------------------
+    # 3. SE44 Validation
+    # --------------------------------------------------------
+    ok, metrics = gate.validate(omega)
+
+    if not ok:
+        store_failure("SE44_VALIDATION_FAILED", req.dict(), metrics)
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "REJECTED",
+                "reason": "SE44_VALIDATION_FAILED",
+                "metrics": metrics,
+            },
+        )
+
+    # --------------------------------------------------------
+    # 4. Dual Validator Enforcement
+    # --------------------------------------------------------
+    secondary_ok, _ = validate_with_secondary(
+        {
+            "omega": omega,
+            "trace": trace,
+            "metrics": metrics,
+        },
+        force_mismatch=bool(x_force_mismatch),
+    )
+
+    if not secondary_ok:
+        store_failure("VALIDATOR_MISMATCH", req.dict(), metrics)
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "REJECTED",
+                "reason": "VALIDATOR_MISMATCH",
+            },
+        )
+
+    # --------------------------------------------------------
+    # 5. ACCEPTED — Ledger Persists Elsewhere
+    # --------------------------------------------------------
+    return {
+        "status": "ACCEPTED",
+        "omega": omega,
+        "metrics": metrics,
+        "trace": trace,
+    }
