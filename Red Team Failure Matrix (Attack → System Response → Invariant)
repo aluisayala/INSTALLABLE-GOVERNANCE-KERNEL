@@ -1,0 +1,112 @@
+Red Team Failure Matrix (Attack → System Response → Invariant)
+
+This section is the trust converter.
+
+It assumes a hostile or skeptical operator and answers one question only:
+
+“If I try to break this, what exactly happens?”
+
+Everything below is intentional behavior, not best-effort.
+
+🔴 Red Team Failure Matrix
+
+Each row represents a real attack or misuse scenario.
+Each outcome is deterministic.
+
+🧨 Attack Class 1: Parameter Manipulation
+Attack	What the attacker does	System response	Invariant preserved
+Alpha inflation	Sets alpha to extreme value	SE44 entropy violation → reject	No unstable Ω enters ledger
+Bias spoofing	Changes bias without version increment	Hash mismatch → validator reject	Bias lineage is enforced
+State type mismatch	Declares incorrect state type	Coherence drop → reject	Semantic integrity preserved
+
+Key point:
+Governance cannot be “tuned past” limits.
+
+🧨 Attack Class 2: Continuity Attacks
+Attack	What the attacker does	System response	Invariant preserved
+Drift jump	Large Ω delta from last fossil	RMS drift violation → reject	Continuity enforced
+History rewind	Attempts to compute against old Ω	Previous-hash mismatch → reject	Time moves forward only
+Replay attack	Resubmits old valid emission	Hash collision detected → reject	Fossils are single-use
+
+Key point:
+Continuity is mechanical, not contextual.
+
+🧨 Attack Class 3: Validator Attacks
+Attack	What the attacker does	System response	Invariant preserved
+Single-validator override	Disables secondary validator	No consensus → no write	No unilateral authority
+Modified validator logic	Alters validator thresholds	Hash disagreement → reject	Fork is visible
+Network desync	Causes validator delay or loss	Timeout → reject	Availability ≠ authority
+
+Key point:
+Validators can disagree safely — governance halts.
+
+🧨 Attack Class 4: Ledger Attacks
+Attack	What the attacker does	System response	Invariant preserved
+Direct ledger edit	Modifies ledger file	Hash chain breaks → reject	History is immutable
+Partial write	Interrupts append operation	Transaction aborted	No half-truths
+Fake previous hash	Supplies forged hash	Integrity check fails	Chain continuity
+
+Key point:
+The ledger is dumb, strict, and final — by design.
+
+🧨 Attack Class 5: Runtime Abuse
+Attack	What the attacker does	System response	Invariant preserved
+Infinite retries	Spams invalid emissions	Rate-limited, quarantined	No exhaustion of truth
+Exception forcing	Tries to crash runtime	Process exits safely	No corrupted state
+Privilege escalation	Gains container access	Read-only FS blocks writes	Runtime ≠ authority
+
+Key point:
+Crashing the runtime does not grant power.
+
+🚫 Attacks That Are Impossible (By Construction)
+
+These cannot occur unless the code is rewritten:
+
+❌ Writing to ledger without validator agreement
+
+❌ Overwriting a fossil
+
+❌ Editing past records
+
+❌ Accepting governance via role or identity
+
+❌ Silently correcting invalid emissions
+
+If any of these happen, the system is compromised, not misused.
+
+🧠 Why This Matrix Matters
+
+This matrix demonstrates that:
+
+All failures are local
+
+All authority is structural
+
+All corruption attempts are observable
+
+All forks are explicit
+
+There is no “unknown failure mode” that grants power.
+
+✅ Final Safety Guarantee
+
+Every attack either fails cleanly or produces a visible fork.
+No attack produces silent authority.
+
+That is what safe failure means in governance.
+
+📌 Adoption Test (Implicit)
+
+If someone can:
+
+clone the repo
+
+run the demo
+
+execute these attacks
+
+and observe these outcomes
+
+Then governance does not rely on trust.
+
+It relies on execution.
