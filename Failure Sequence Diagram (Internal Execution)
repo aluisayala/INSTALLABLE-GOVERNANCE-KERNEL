@@ -1,0 +1,166 @@
+This is a mechanical sequence, not conceptual.
+It shows exactly where failure can occur and what cannot happen.
+
+You can drop this straight into the README.
+
+🔁 Failure Sequence Diagram
+Legend
+
+KR = Kernel Runtime
+
+SV = Secondary Validator
+
+FL = Fossil Ledger
+
+MS = Mutable Shell
+
+🟢 Normal (Successful) Path — for reference
+Client
+  |
+  v
+KR: Execute Ω
+  |
+  v
+KR: Generate Trace
+  |
+  v
+KR: SE44 Validate (pass)
+  |
+  v
+SV: Recompute Ω + Metrics
+  |
+  v
+SV: Hash Match (pass)
+  |
+  v
+FL: Append Fossil
+  |
+  v
+Client ← ACCEPTED
+
+
+Key property:
+Ledger write happens only after dual agreement.
+
+❌ Failure Case A: SE44 Validation Failure
+
+Cause: entropy / drift / coherence violation
+
+Client
+  |
+  v
+KR: Execute Ω
+  |
+  v
+KR: Generate Trace
+  |
+  v
+KR: SE44 Validate (FAIL)
+  |
+  +--------------------+
+  |                    |
+  v                    |
+MS: Store Rejected     |
+  |                    |
+  v                    |
+Client ← REJECTED      |
+                       |
+FL: (NO CALL) ◄────────+
+SV: (NO CALL)
+
+What this proves
+
+Ledger is never contacted
+
+Validator is never contacted
+
+Failure is contained entirely inside runtime
+
+History cannot change
+
+❌ Failure Case B: Dual Validator Mismatch (SE44.1)
+
+Cause: hash mismatch, recomputation difference, forced desync
+
+Client
+  |
+  v
+KR: Execute Ω
+  |
+  v
+KR: Generate Trace
+  |
+  v
+KR: SE44 Validate (pass)
+  |
+  v
+SV: Recompute Ω + Metrics
+  |
+  v
+SV: MISMATCH
+  |
+  +--------------------+
+  |                    |
+  v                    |
+MS: Store Rejected     |
+  |                    |
+  v                    |
+Client ← REJECTED      |
+                       |
+FL: (NO WRITE) ◄───────+
+
+What this proves
+
+Primary runtime cannot assert truth alone
+
+Ledger enforces consensus-by-equality
+
+Validator disagreement halts governance cleanly
+
+❌ Failure Case C: Ledger Integrity Refusal
+
+Cause: previous hash mismatch, tampering, malformed entry
+
+Client
+  |
+  v
+KR: Execute Ω
+  |
+  v
+KR: SE44 Validate (pass)
+  |
+  v
+SV: Recompute (pass)
+  |
+  v
+FL: Integrity Check (FAIL)
+  |
+  +--------------------+
+  |                    |
+  v                    |
+Client ← REJECTED      |
+                       |
+MS: (OPTIONAL LOG) ◄───+
+
+What this proves
+
+Even perfect validators cannot override ledger invariants
+
+Append-only enforcement is final authority
+
+No partial writes are possible
+
+🚫 Impossible Transitions (By Construction)
+
+These transitions do not exist in code:
+
+SE44 FAIL → FL WRITE        ❌
+SV MISMATCH → FL WRITE     ❌
+FL REJECT → HISTORY EDIT   ❌
+KR OVERRIDE → ACCEPT       ❌
+Structural Guarantee
+
+Failure can only move downward into quarantine,
+never sideways into authority,
+and never backward into history.
+If any of these occur, the kernel is compromised — not “misconfigured”.
