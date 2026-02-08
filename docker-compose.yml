@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+
+  kernel-runtime:
+    container_name: igk-kernel-runtime
+    build:
+      context: ./kernel-runtime
+      dockerfile: Dockerfile
+    image: igk/kernel-runtime:latest
+    environment:
+      - ROLE=PRIMARY_RUNTIME
+      - SE44_COHERENCE_MIN=0.985
+      - SE44_ENTROPY_MAX=0.01
+      - SE44_RMS_DRIFT_MAX=0.001
+      - DRIFT_CACHE_HOST=redis
+      - DRIFT_CACHE_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - igk_net
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - mutable_shell:/var/igk/mutable-shell
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "kernel_runtime.app"]
+
+  validator-secondary:
+    container_name: igk-validator-secondary
+    build:
+      context: ./validator-secondary
+      dockerfile: Dockerfile
+    image: igk/validator-secondary:latest
+    environment:
+      - ROLE=SECONDARY_VALIDATOR
+      - SE44_COHERENCE_MIN=0.985
+      - SE44_ENTROPY_MAX=0.01
+      - SE44_RMS_DRIFT_MAX=0.001
+    networks:
+      - igk_net
+    read_only: true
+    tmpfs:
+      - /tmp
+    ports:
+      - "8001:8001"
+    command: ["python", "-m", "validator_secondary.app"]
+
+  fossil-ledger:
+    container_name: igk-fossil-ledger
+    build:
+      context: ./fossil-ledger
+      dockerfile: Dockerfile
+    image: igk/fossil-ledger:latest
+    environment:
+      - ROLE=LEDGER
+      - LEDGER_MODE=APPEND_ONLY
+      - HASH_ALGORITHM=SHA256
+    networks:
+      - igk_net
+    read_only: true
+    volumes:
+      - fossil_chain:/var/igk/ledger
+    ports:
+      - "8002:8002"
+    command: ["python", "-m", "fossil_ledger.app"]
+
+  redis:
+    container_name: igk-drift-cache
+    image: redis:7-alpine
+    networks:
+      - igk_net
+    read_only: true
+    tmpfs:
+      - /data
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+networks:
+  igk_net:
+    driver: bridge
+
+volumes:
+  fossil_chain:
+    driver: local
+  mutable_shell:
+    driver: local
